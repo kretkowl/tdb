@@ -24,6 +24,10 @@ public class DB implements Serializable {
         return documents.stream().filter(d -> d.equals(document)).findAny();
     }
 
+    public Stream<Document> findAllDocuments() {
+        return documents.stream();
+    }
+
     public void remove(Document document) {
         documents.remove(document);
         var docByPath = documentsByPath.get(document.getPath());
@@ -65,11 +69,13 @@ public class DB implements Serializable {
     }
 
     public Stream<Entry> findByDocument(Document d) {
-        return entriesByDocument.get(d).stream();
+        System.out.println("find by document");
+        return entriesByDocument.getOrDefault(d, Collections.emptySet()).stream();
     }
 
     public Stream<Entry> findByDocumentName(String name) {
-        return documentsByName.get(name).stream().flatMap(this::findByDocument);
+        System.out.println("find by document name");
+        return documentsByName.getOrDefault(name, Collections.emptySet()).stream().flatMap(this::findByDocument);
     }
 
     public Stream<Entry> findByAttribute(String attribute, String value) {
