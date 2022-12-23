@@ -1,6 +1,7 @@
 package pl.kretdb.model;
 
 import java.io.Serializable;
+import java.nio.file.Paths;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -19,9 +20,9 @@ public class Document implements Serializable {
     String modification; 
 
     public Document(String pathAndName) {
-        //todo
-        this.path = "";
-        this.name = "";
+        var p = Paths.get(pathAndName);
+        this.path = p.getParent().toString();
+        this.name = p.getFileName().toString();
         this.modification = null;
     }
 }

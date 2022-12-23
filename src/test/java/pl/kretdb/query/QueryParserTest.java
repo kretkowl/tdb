@@ -186,7 +186,7 @@ public class QueryParserTest {
 
     @Test
     public void shouldSelectCartesian() {
-        var query = "from name n1, name n2 where n1.a = n2.a select n1.a a";
+        var query = "from name n1, name n2 where n1.a = n2.a select n1.a";
 
         assertSingleResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute(), "a", "A");
     }

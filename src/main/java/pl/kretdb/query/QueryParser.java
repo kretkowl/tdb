@@ -46,7 +46,7 @@ public class QueryParser {
         public int read(char[] cbuf, int off, int len) throws IOException {
             if (len == 0)
                 return 0;
-            if (unread != -1) {
+            if(unread != -1) {
                 cbuf[off] = (char) unread;
                 unread = -1;
                 return base.read(cbuf, off + 1, len - 1) + 1;
@@ -272,7 +272,9 @@ public class QueryParser {
         l.setDocumentAllowed(false);
     }
 
-    private interface QueryFunction extends Function<Map<String, String>, String> {}
+    private interface QueryFunction extends Function<Map<String, String>, String> {
+        default String asLabel() { return null; }
+    }
 
     private static boolean convert2Bool(String s) {
         return s != null && !"f".equalsIgnoreCase(s);
@@ -297,8 +299,17 @@ public class QueryParser {
             if ("null".equalsIgnoreCase(value)) return __ -> null;
             else if ("false".equalsIgnoreCase(value)) return __ -> "f";
             else if ("true".equalsIgnoreCase(value)) return __ -> "t";
-            else return ctx -> ctx.get(value);
+            else return new QueryFunction() {
 
+                public String apply(Map<String, String> qc) {
+                    return qc.get(value);
+                }
+
+                @Override
+                public String asLabel() {
+                    return extractFieldName(value);
+                }
+            };
         throw new RuntimeException("shouldn't happen");
     }
 
@@ -344,7 +355,7 @@ public class QueryParser {
                             .orElseGet(() -> {
                                 String evalAlias = null;
                                 try {
-                                    evalAlias = expr.apply(Collections.emptyMap());
+                                    evalAlias = expr.asLabel();
                                 } catch (Exception e) { /* nop */ }
                                 if (evalAlias == null || !aliasPattern.matcher(evalAlias).matches()) {
                                     return "__data_" + aliasCnt.incrementAndGet();
