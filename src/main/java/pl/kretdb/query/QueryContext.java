@@ -26,7 +26,7 @@ public class QueryContext {
         return partialResults.get(i).select(this);
     }
 
-    Stream<Map<String, String>> execute() {
+    public Stream<Map<String, String>> execute() {
         return execute(lastIndex());
     }
 }

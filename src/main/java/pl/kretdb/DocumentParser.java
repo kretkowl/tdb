@@ -41,7 +41,6 @@ public class DocumentParser {
 
         @SneakyThrows
         private void tryRead() {
-            System.out.println("try read");
             if (atEnd || current != null)
                 return;
             do {
@@ -49,22 +48,17 @@ public class DocumentParser {
                 UnboundEntry ue = new UnboundEntry(currentLine, new HashMap<>());
                 do {
                     String line = r.readLine();
-                    System.out.println("read line: " + line);
                     currentLine++;
                     if (line == null) {
-                        System.out.println("eof");
                         eof = true;
                         break;
                     } else if (line.startsWith("#")) { // header
-                        System.out.println("header");
                         break;
                     }
                     var m = ATTRIBUTE.matcher(line);
                     if (m.find()) {
-                        System.out.println("attribute");
                         var attribute = m.group(1);
                         var value = line.substring(m.end()).trim(); // TODO support for multiline values
-                        System.out.println("attribute " + attribute + " " + value);
                         ue.attributes.put(attribute, value);
                     }
                 } while (true);

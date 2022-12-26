@@ -78,7 +78,12 @@ grouping, but there is no syntax for it.
 
 # Running
 
+**WARNING** This tool uses standard Java deserialization when reading its indices. As this mechanism can be compromised, caution should be taken
+to not to run it on elevated priviliges, because in highly unlikely scenario of preparing and substituting index file, arbitrary code may be 
+executed.
+
 TODO
+
 
 # Building
 

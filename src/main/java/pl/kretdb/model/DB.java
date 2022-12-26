@@ -29,7 +29,8 @@ public class DB implements Serializable {
     }
 
     public void remove(Document document) {
-        documents.remove(document);
+        if (!documents.remove(document))
+            return;
         var docByPath = documentsByPath.get(document.getPath());
         docByPath.remove(document);
         if (docByPath.isEmpty()) documentsByPath.remove(document.getPath());
@@ -39,8 +40,10 @@ public class DB implements Serializable {
         if (docByName.isEmpty()) documentsByName.remove(document.getName());
 
         var docEntries = entriesByDocument.remove(document);
+        if (docEntries == null)
+            return;
         entries.removeAll(docEntries);
-        entries.forEach(e -> 
+        docEntries.forEach(e -> 
             e.getAttributes().forEach((a, v) -> {
                 entriesByAttribute.get(a).get(v).remove(e);
                 if (entriesByAttribute.get(a).get(v).isEmpty())
@@ -69,12 +72,10 @@ public class DB implements Serializable {
     }
 
     public Stream<Entry> findByDocument(Document d) {
-        System.out.println("find by document");
         return entriesByDocument.getOrDefault(d, Collections.emptySet()).stream();
     }
 
     public Stream<Entry> findByDocumentName(String name) {
-        System.out.println("find by document name");
         return documentsByName.getOrDefault(name, Collections.emptySet()).stream().flatMap(this::findByDocument);
     }
 

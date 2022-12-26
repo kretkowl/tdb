@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -188,7 +189,6 @@ public class QueryParser {
                 return ret;
             }
             var t = readNextTokenInternal();   
-            System.out.println("token: " + t);
             return t;
         }
 
@@ -197,19 +197,15 @@ public class QueryParser {
             if (t != null && predicate.test(t))
                 return Optional.of(t);
             nextToken = t;
-            System.out.println("no match");
             return Optional.empty();
         }
 
         Optional<String> match(TokenType tt) {
-            System.out.println("try match " + tt);
             return match(tt, t->true);
         }
 
         Optional<String> match(TokenType tt, Predicate<String> valuePredicate) {
-            System.out.println("try match " + tt + " with predicate");
             return match(t -> { 
-                    System.out.println("pred token: " + t);
                     return t.type == tt && valuePredicate.test(t.getValue());
                 }).map(Token::getValue);
         }
@@ -219,13 +215,9 @@ public class QueryParser {
         QueryContext qc = new QueryContext(db);
         PushbackReader pbr = new PushbackReader(new StringReader(query));
         Lexer lexer = new Lexer(pbr);
-        System.out.println("parseFrom");
         parseFrom(qc, lexer);
-        System.out.println("parseWhere");
         parseWhere(qc, lexer);
-        System.out.println("parseSelect");
         parseSelect(qc, lexer);
-        System.out.println("after parse");
         if (lexer.readNextToken() != null) {
             throw failMatch("expected end of query").get();
         }
@@ -241,11 +233,8 @@ public class QueryParser {
 
     private void parseFrom(QueryContext qc, Lexer l) {
         l.setDocumentAllowed(true);
-        System.out.println("match from");
         l.match(TokenType.SYMBOL, v -> v.equals("from")).orElseThrow(failMatch("from expected"));
-        System.out.println("match sources");
         do { 
-            System.out.println("try match star");
             Operator op = l.match(TokenType.STAR)
                 .map(__ -> Operators.selectAll())
                 .orElseGet(() -> l.match(TokenType.DOCUMENT)
@@ -254,20 +243,16 @@ public class QueryParser {
                         .orElseGet(() -> l.match(TokenType.SYMBOL)
                             .map(Operators::selectByDocumentName)
                             .orElseThrow(failMatch("source symbol expected"))));
-            System.out.println("register operator");
             qc.addPartial(op);
             var index = qc.lastIndex();
-            System.out.println("try match alias");
             l.match(TokenType.SYMBOL, Predicate.not(KEYWORDS::contains))
                 .ifPresent(alias -> qc.addPartial(Operators.project(index, attrs -> 
                                 attrs.entrySet().stream()
                                 .flatMap(e -> Stream.of(e, Map.entry(alias + "." + e.getKey(), e.getValue())))
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
             if (index > 0) {
-                System.out.println("register cartesian");
                 qc.addPartial(Operators.cartesian(index-1, qc.lastIndex()));
             }
-            System.out.println("source end");
         } while (l.match(TokenType.COMMA).isPresent());
         l.setDocumentAllowed(false);
     }
@@ -289,7 +274,6 @@ public class QueryParser {
     }
 
     private QueryFunction resolveValue(Token t) {
-        System.out.println("resolve val " + t);
         var type = t.getType();
         var value = t.getValue();
         if (type == TokenType.STRING || type == TokenType.NUMBER)
@@ -335,19 +319,15 @@ public class QueryParser {
     private static Pattern aliasPattern = Pattern.compile("[a-z][a-z_0-9]*");
 
     private void parseSelect(QueryContext qc, Lexer l) {
-        System.out.println("match select");
         l.match(TokenType.SYMBOL, "select"::equals);
 
         var projection =
             l.match(TokenType.STAR)
-                .map(
-                    __ -> { System.out.println("matched star, projecting all");
-                     return (UnaryOperator<Map<String, String>>)(ma -> 
+                .map(__ -> (UnaryOperator<Map<String, String>>)(ma -> 
                         ma.entrySet().stream()
-                            .collect(Collectors.toMap(e -> extractFieldName(e.getKey()), Entry::getValue, (v1, v2) -> v1)));}) 
+                            .collect(Collectors.toMap(e -> extractFieldName(e.getKey()), Entry::getValue, (v1, v2) -> v1)))) 
                 .orElseGet(() -> {
-                    System.out.println("match projection list");
-                    Map<String, QueryFunction> alias2expression = new HashMap<>();
+                    Map<String, QueryFunction> alias2expression = new LinkedHashMap<>();
                     var aliasCnt = new AtomicInteger(0);
                     do {
                         var expr = parseExpression(l);
@@ -365,7 +345,11 @@ public class QueryParser {
                         alias2expression.put(alias, expr);
                     } while (l.match(TokenType.COMMA).isPresent());
                     return ma -> alias2expression.entrySet().stream()
-                        .collect(Collectors.toMap(Entry::getKey, e -> e.getValue().apply(ma)));
+                        .collect(Collectors.toMap(
+                                    Entry::getKey, 
+                                    e -> e.getValue().apply(ma),
+                                    (m1, m2) -> m2,
+                                    LinkedHashMap::new));
                 });
 
         qc.addPartial(Operators.project(qc.lastIndex(), projection));
@@ -389,53 +373,39 @@ public class QueryParser {
      * op := EQ, NE, GT, GE, LT, LE, MATCHES, CONCAT, 'AND', 'OR'
      */
     private QueryFunction parseExpression(Lexer l) {
-        System.out.println("parse expression begin");
         Token token = l.readNextToken();
 
         QueryFunction expr;
     
         if (token.type == TokenType.LP) {
-            System.out.println("[expr] parens");
             expr = parseExpression(l);
             l.match(TokenType.RP).orElseThrow(failMatch("')' expected"));
-            System.out.println("[expr] parens end");
         } else if (token.type == TokenType.SYMBOL) {
-            System.out.println("[expr] symbol");
             if (token.getValue().equals("not")) {
-                System.out.println("[expr] not");
                 var expr2 = parseExpression(l);
                 expr = ma -> convert2String(!convert2Bool(expr2.apply(ma)));
-                System.out.println("[expr] not end");
             } else if (token.getValue().equals("false")) {
-                System.out.println("[expr] false");
                 expr = __ -> convert2String(false);
             } else if (token.getValue().equals("true")) {
-                System.out.println("[expr] true");
                 expr = __ -> convert2String(true);
             } else if (l.match(TokenType.LP).isPresent()) {
-                System.out.println("[expr] fun call");
                 List<QueryFunction> args = new ArrayList<>();
                 if (l.match(TokenType.RP).isEmpty())
                     args = parseExpressionList(l);
                 l.match(TokenType.RP).orElseThrow(failMatch("')' expected"));
                 var argsCp = args;
                 expr = ma -> callBuiltin(token.getValue(), argsCp.stream().map(arg -> arg.apply(ma)).collect(Collectors.toList()));
-                System.out.println("[expr] fun call end");
             } else {
-                System.out.println("[expr] naked symbol");
                 expr = resolveValue(token);
             }
         } else if (token.type == TokenType.STRING || token.type == TokenType.NUMBER) {
-            System.out.println("[expr] string/number");
             expr = resolveValue(token);
         } else 
             throw failMatch("term expected").get();
 
-        System.out.println("[expr] term matched");
         if (l.match(TokenType.SYMBOL, "in"::equals).isPresent())
             expr = parseInOperator(l, expr);
         else if (l.match(TokenType.SYMBOL, "is"::equals).isPresent()) {
-            System.out.println("[expr] is (not) null");
             var expr2 = expr;
             expr = (QueryFunction)l.match(TokenType.SYMBOL, "null"::equals)
                 .map(___ -> (QueryFunction)(ma -> convert2String(expr2.apply(ma) == null)))
@@ -445,23 +415,18 @@ public class QueryParser {
 
                     return ma -> convert2String(expr2.apply(ma) != null);
                 });
-            System.out.println("[expr] is (not) null end");
         }
 
-        System.out.println("parse expression op tail");
         var ret = parseOperatorExpressionTail(l, expr);
-        System.out.println("parse expression begin");
         return ret;
     }
 
     // expects lexer after 'in' keyword
     private QueryFunction parseInOperator(Lexer l, QueryFunction first) {
-        System.out.println("[expr] in");
         l.match(TokenType.LP).orElseThrow(failMatch("opening parethesis expected"));
         List<QueryFunction> matches = parseExpressionList(l);
         l.match(TokenType.RP).orElseThrow(failMatch("closing parethesis expected"));
 
-        System.out.println("[expr] in end");
         return (ma) -> {
             var v = first.apply(ma);
             return convert2String(
@@ -499,26 +464,21 @@ public class QueryParser {
 
     // expects lexer on operator
     private QueryFunction parseOperatorExpressionTail(Lexer l, QueryFunction first) {
-        System.out.println("[expr] op check");
         return l.match(OPERATORS::containsKey)
             .map(op -> {
-                System.out.println("[expr] op");
                 QueryFunction qf = parseExpression(l);
                 var opFun = OPERATORS.get(op); 
-                System.out.println("[expr] op end");
                 return (QueryFunction)(ma -> opFun.apply(first.apply(ma), qf.apply(ma)));
             })
             .orElse(first);
     }
 
     private List<QueryFunction> parseExpressionList(Lexer l) {
-        System.out.println("[expr] expression list");
         List<QueryFunction> args = new ArrayList<>();
 
         do {
             args.add(parseExpression(l));
         } while (l.match(TokenType.COMMA).isPresent());
-        System.out.println("[expr] expression list end");
         return args;
     }
 

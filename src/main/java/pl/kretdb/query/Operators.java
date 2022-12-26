@@ -28,7 +28,6 @@ public class Operators {
     }
 
     public static Operator selectByDocumentName(String name) {
-        System.out.println("HERE");
         return select(db -> db.findByDocumentName(name));
     }
 

@@ -9,15 +9,18 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import pl.kretdb.model.Document;
 import pl.kretdb.model.Entry;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DocumentProcessor {
 
-    private DocumentParser parser;
+    final private DocumentParser parser;
+    @Setter
+    private Path root;
 
     @SneakyThrows
     public List<Entry> processDocument(Document d) {
@@ -48,6 +51,7 @@ public class DocumentProcessor {
 
     private Path findDocumentFile(Document d) {
         Path path = Paths.get(d.getPath(), d.getName());
+        path = root.resolve(path);
         if (!Files.isRegularFile(path)) {
             throw new NoSuchElementException();
         }
