@@ -160,7 +160,9 @@ grouping, but there is no syntax for it.
 
 **WARNING** This tool uses standard Java deserialization when reading its indices. As this mechanism can be 
 compromised, caution should be taken to not to run it on elevated priviliges, because in highly unlikely 
-scenario of preparing and substituting index file, arbitrary code may be executed.
+scenario of preparing and substituting index file, arbitrary code may be executed. This risk does not
+exist when using native binaries, because of requirement of all serialized classess specification at 
+compile time.
 
 Use `tdb` alone to show usage. Basically, you will run `tdb init -i` in root of your documents (it will create and 
 populate db file). Afterwards, you may issue queries with `tdb query (-c|-r|-v) QUERY` (don't forget to escape it), 
