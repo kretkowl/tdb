@@ -56,24 +56,25 @@ other usages.
 Query langauge is hacked ad hoc with some shortcuts in few hours. You were warned.
 
 ```
-                      +-------------------------v
---> 'FROM' -> source -+-> 'WHERE' -> expression -> 'SELECT' -> projection +-> end
-           ^-- ',' ---+                                     ^------ , ----+
+                             +-------------------------v
+query: --> 'FROM' -> source -+-> 'WHERE' -> expression -> 'SELECT' -> projection +-> end
+                  ^-- ',' ---+                                     ^------ , ----+
 ```
 
 _Sources_ are full outer joined, i.e. it's cartesian join for each _source_ + null row.
 
 ```
-           +-> document location --v +---------v
-source:  --+-----> document name ----+-> alias -> 
+           +-> document location ----+
+           +-> '(' -> query -> ')' --v   +---------v
+source:  --+-----> document name --------+-> alias -> 
            +---------> '*' -------^
 ```
 
 _Document location_ is document path (relative to documents root) preceded by '/' and followed by name, 
 e.g. `/journal/january` - this matches exact document. _Document name_ `january` would match all documents 
-with that name in any directory from root. Star matches all entries. _Alias_ is optional and allows
-referencing by `alias.attribute`, although `attribute` still works (but may be shadowed by following
-sources).
+with that name in any directory from root. Parentheses surround _query_ to form a subquery. Star matches 
+all entries. _Alias_ is optional and allows referencing by `alias.attribute`, although `attribute` 
+still works (but may be shadowed by following sources).
 
 ```
 expression: --+-> 'FALSE' ----------------------------------->
@@ -188,9 +189,9 @@ Precompiled binaries for Linux are available on github.
 
 # Planned features
 
-- subqueries in `from` (will allow some manual optimization and make some more complex queries possible)
 - `group` and `order by` clauses
-- functions (nvl, substr, find)
+- table output
+- builtin functions (nvl, substr, find)
 - pseudo-columns `__document`, `__line`
 - query optimization (joins and select order)
 

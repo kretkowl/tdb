@@ -186,9 +186,11 @@ public class QueryParser {
             if (nextToken != null) {
                 var ret = nextToken;
                 nextToken = null;
+                System.out.println("return nextT: " + ret);
                 return ret;
             }
             var t = readNextTokenInternal();   
+            System.out.println("return nextT after read: "+ t);
             return t;
         }
 
@@ -215,9 +217,7 @@ public class QueryParser {
         QueryContext qc = new QueryContext(db);
         PushbackReader pbr = new PushbackReader(new StringReader(query));
         Lexer lexer = new Lexer(pbr);
-        parseFrom(qc, lexer);
-        parseWhere(qc, lexer);
-        parseSelect(qc, lexer);
+        parseQuery(qc, lexer);
         if (lexer.readNextToken() != null) {
             throw failMatch("expected end of query").get();
         }
@@ -225,33 +225,54 @@ public class QueryParser {
         return qc;
     }
 
-    private static Set<String> KEYWORDS = Set.of("from", "where", "select", "group", "null");
+    private static Set<String> KEYWORDS = Set.of("from", "where", "select", "group", "null", "order");
 
     private Supplier<RuntimeException> failMatch(String msg) {
         return () -> new IllegalStateException(msg);
+    }
+
+    private void parseQuery(QueryContext qc, Lexer lexer) {
+        System.out.println("PC FROM");
+        parseFrom(qc, lexer);
+        System.out.println("PC WHERE");
+        parseWhere(qc, lexer);
+        System.out.println("PC SELECT");
+        parseSelect(qc, lexer);
+        System.out.println("PC ORDER");
+        parseOrder(qc, lexer);
+        System.out.println("PC END");
     }
 
     private void parseFrom(QueryContext qc, Lexer l) {
         l.setDocumentAllowed(true);
         l.match(TokenType.SYMBOL, v -> v.equals("from")).orElseThrow(failMatch("from expected"));
         do { 
-            Operator op = l.match(TokenType.STAR)
-                .map(__ -> Operators.selectAll())
-                .orElseGet(() -> l.match(TokenType.DOCUMENT)
-                        .map(d -> new Document(d))
-                        .map(Operators::selectByDocument)
-                        .orElseGet(() -> l.match(TokenType.SYMBOL)
-                            .map(Operators::selectByDocumentName)
-                            .orElseThrow(failMatch("source symbol expected"))));
-            qc.addPartial(op);
-            var index = qc.lastIndex();
+            var previousIndex = qc.lastIndex();
+            l.match(TokenType.LP)
+                .ifPresentOrElse(__ -> {
+                    System.out.println("SUBQ START");
+                    parseQuery(qc, l);
+                    System.out.println("SUBQ AFTER PC");
+                    l.match(TokenType.RP).orElseThrow(failMatch("closing parenthesis expected"));
+                },
+                () -> {
+                    Operator op = l.match(TokenType.STAR)
+                        .map(__ -> Operators.selectAll())
+                        .orElseGet(() -> l.match(TokenType.DOCUMENT)
+                                .map(d -> new Document(d))
+                                .map(Operators::selectByDocument)
+                                .orElseGet(() -> l.match(TokenType.SYMBOL)
+                                    .map(Operators::selectByDocumentName)
+                                    .orElseThrow(failMatch("source symbol expected"))));
+                    qc.addPartial(op);
+                });
             l.match(TokenType.SYMBOL, Predicate.not(KEYWORDS::contains))
-                .ifPresent(alias -> qc.addPartial(Operators.project(index, attrs -> 
+                .ifPresent(alias -> qc.addPartial(Operators.project(qc.lastIndex(), attrs -> 
                                 attrs.entrySet().stream()
                                 .flatMap(e -> Stream.of(e, Map.entry(alias + "." + e.getKey(), e.getValue())))
                                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
-            if (index > 0) {
-                qc.addPartial(Operators.cartesian(index-1, qc.lastIndex()));
+            if (previousIndex >= 0) {
+                qc.addPartial(Operators.cartesian(previousIndex, qc.lastIndex()));
             }
         } while (l.match(TokenType.COMMA).isPresent());
         l.setDocumentAllowed(false);
@@ -319,7 +340,7 @@ public class QueryParser {
     private static Pattern aliasPattern = Pattern.compile("[a-z][a-z_0-9]*");
 
     private void parseSelect(QueryContext qc, Lexer l) {
-        l.match(TokenType.SYMBOL, "select"::equals);
+        l.match(TokenType.SYMBOL, "select"::equals).orElseThrow(failMatch("select expected"));
 
         var projection =
             l.match(TokenType.STAR)
@@ -482,4 +503,7 @@ public class QueryParser {
         return args;
     }
 
+    private void parseOrder(QueryContext qc, Lexer l) {
+
+    }
 }

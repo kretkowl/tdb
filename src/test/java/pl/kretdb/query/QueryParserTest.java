@@ -102,7 +102,7 @@ public class QueryParserTest {
         testAndAssertParseFail(query);
     }
     @Test
-    public void shouldFailOnUnfinisheOpExpr() {
+    public void shouldFailOnUnfinishedOpExpr() {
         System.out.println("== start unfinished op expr ==");
         var query = "from name 1 select 1 <=";
 
@@ -110,11 +110,19 @@ public class QueryParserTest {
     }
 
     @Test
-    public void shouldFailOnUnfinisheExprList() {
+    public void shouldFailOnUnfinishedExprList() {
         System.out.println("== start unfinished expr list ==");
         var query = "from name 1 select 1 in (2, )";
 
         testAndAssertParseFail(query);
+    }
+
+    @Test
+    public void shouldParseSubquery() {
+        System.out.println("== start subquery ==");
+        var query = "from (from * select *) select a, b";
+
+        new QueryParser().parseQuery(new DB(), query);
     }
 
     @Test
@@ -197,4 +205,12 @@ public class QueryParserTest {
 
         assertEmptyResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute());
     }
+
+    @Test 
+    public void shouldSelectSubquery() {
+        var query = "from (from * select *) n1, name n2 where n1.a = n2.a select n1.a";
+
+        assertSingleResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute(), "a", "A");
+    }
+
 }
