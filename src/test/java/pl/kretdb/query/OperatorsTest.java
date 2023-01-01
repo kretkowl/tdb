@@ -117,4 +117,15 @@ public class OperatorsTest {
 
         assertThat("size", ret.size(), is(5));
     }
+
+    @Test
+    public void distinctShouldDiscardCopies() {
+        var qc = createContext();
+        qc.addPartial(Operators.selectAll());
+        qc.addPartial(Operators.filter(0, m -> m.get("a").equals("A")));
+        qc.addPartial(Operators.project(1, m -> Map.of("a", m.get("a"))));
+        var ret = Operators.distinct(2).select(qc).collect(toList());
+
+        assertThat("size", ret.size(), is(1));
+    }
 }

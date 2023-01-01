@@ -9,13 +9,14 @@ import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.groupingBy;
 
 import java.util.Collections;
 
 import pl.kretdb.model.DB;
 import pl.kretdb.model.Document;
 import pl.kretdb.model.Entry;
+import static pl.kretdb.Util.toMap;
 
 public class Operators {
 
@@ -59,9 +60,15 @@ public class Operators {
         return transform(base, s -> s.sorted(comparator));
     }
 
+    public static Operator distinct(int base) {
+        return transform(base, Stream::distinct);
+    }
+
     public static Operator groupBy(int base, List<String> attributes, Function<List<Map<String, String>>, Map<String, String>> aggregates) {
         return transform(base, s -> {
-            var group = s.collect(groupingBy(attrs -> attributes.stream().collect(toMap(a->a, a->(String)attrs.get(a)))));
+            var group = s.peek(v -> { System.out.println("peek " + v);}).collect(groupingBy(attrs -> attributes.stream().collect(toMap(a->a, a-> { System.out.println("value for: " +a); return (String)attrs.get(a); }))));
+            System.out.println("group: " + group);
+            //var group = s.collect(groupingBy(attrs -> attributes.stream().collect(() -> new HashMap<String, String>(), (m,a) -> m.put(a, (String)attrs.get(a)), HashMap::putAll)));
             return group.entrySet().stream()
                 .map(e -> {
                     Map<String, String> ret = new HashMap<>(e.getKey());

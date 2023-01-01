@@ -1,16 +1,19 @@
 package pl.kretdb.query;
 
-import org.junit.Test;
-
+import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.junit.Test;
 
 import pl.kretdb.model.DB;
 import pl.kretdb.model.Document;
@@ -95,6 +98,22 @@ public class QueryParserTest {
     }
 
     @Test
+    public void shouldParseAccumulate() {
+        System.out.println("== start accumulate ==");
+        var query = "from name n accumulate count(a) cnt grouping by b, c select cnt, b";
+
+        new QueryParser().parseQuery(new DB(), query);
+    }
+
+    @Test
+    public void shouldParseAccumulateWithoutGroupingBy() {
+        System.out.println("== start accumulate no group ==");
+        var query = "from name n accumulate count(a) cnt, max(b) b select cnt, b";
+
+        new QueryParser().parseQuery(new DB(), query);
+    }
+
+    @Test
     public void shouldFailOnInvaldIs() {
         System.out.println("== start invalid is ==");
         var query = "from name 1 select 1 is funny";
@@ -159,10 +178,20 @@ public class QueryParserTest {
 
     private static DB prepare1EntryDB() {
         DB ret = new DB();
-        var doc = new Document("path", "name", null);
-        var entry = new Entry(doc, 1, Map.of("a", "A", "bb", "1"));
-        ret.add(doc, Collections.singleton(entry));
+        addOneRecordDocument(ret, new Document("path", "name", null), Map.of("a", "A", "bb", "1"));
         return ret;
+    }
+
+    private static DB prepare2EntryDB() {
+        var db = prepare1EntryDB();
+        addOneRecordDocument(db, new Document("path2", "name", null), Map.of("a", "A2", "bb", "0"));
+
+        return db;
+    }
+
+    private static void addOneRecordDocument(DB ret, Document doc, Map<String, String> entryAttributes) {
+        var entry = new Entry(doc, 1, entryAttributes);
+        ret.add(doc, Collections.singleton(entry));
     }
 
     private void assertEmptyResult(Stream<Map<String, String>> res) {
@@ -213,4 +242,40 @@ public class QueryParserTest {
         assertSingleResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute(), "a", "A");
     }
 
+    @Test 
+    public void shouldOrder() {
+        var db = prepare2EntryDB();
+
+        var query = "from name select * order by bb";
+        var query2 = "from name select * order by a";
+        var r1 = new QueryParser().parseQuery(db, query).execute().collect(Collectors.toList());
+        var r2 = new QueryParser().parseQuery(db, query2).execute().collect(Collectors.toList());
+        
+        assertThat(r1.get((0)), equalTo(r2.get(1)));
+        assertThat(r1.get((1)), equalTo(r2.get(0)));
+    }
+
+    @Test 
+    public void shouldSelectCount() {
+        System.out.println("====== start select count =======");
+        var db = prepare2EntryDB();
+        var query = "from name accumulate count(bb) cnt grouping by a select a, cnt";
+
+        var r1 = new QueryParser().parseQuery(db, query).execute().collect(Collectors.toList());
+
+        assertThat(r1.get(1).get("a"), either(equalTo("A")).or(equalTo("A2")));
+        assertThat(r1.get(0).get("a"), either(equalTo("A")).or(equalTo("A2")));
+        assertThat(r1.get(0).get("a"), not(r1.get(1).get("a")));
+        assertThat(r1.get(1).get("cnt"), equalTo("1"));
+        assertThat(r1.get(0).get("cnt"), equalTo("1"));
+    }
+
+    @Test 
+    public void shouldSelectCountWithoutGrouping() {
+        System.out.println("====== start select count without grouping =======");
+        var db = prepare2EntryDB();
+        var query = "from name accumulate count(bb) cnt select cnt";
+
+        assertSingleResult(new QueryParser().parseQuery(db, query).execute(), "cnt", "2");
+    }
 }

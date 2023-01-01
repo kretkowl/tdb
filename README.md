@@ -57,11 +57,31 @@ Query langauge is hacked ad hoc with some shortcuts in few hours. You were warne
 
 ```
                              +-------------------------v
-query: --> 'FROM' -> source -+-> 'WHERE' -> expression -> 'SELECT' -> projection +-> end
-                  ^-- ',' ---+                                     ^------ , ----+
+query: --> 'FROM' -> source -+-> 'WHERE' -> expression ---+
+                  ^-- ',' ---+                            |  
+                                                          |
+       +--------------------------------------------------+
+       |
+       +--+-> accumulate clause ------+
+          +-----------------------^   |          
+                                      | 
+       +------------------------------+
+       |
+       +-> 'SELECT' -+---------------------> projection +-+
+                     +-> 'DISTINCT' -^    ^------ , ----+ |
+                                                          |
+       +--------------------------------------------------+
+       |
+       +-+-----------------------------------> end
+         +--> 'ORDER BY' -> order clauses -^
+
+order clauses: --> expression --+-->
+                ^---- ',' <-----+
 ```
 
 _Sources_ are full outer joined, i.e. it's cartesian join for each _source_ + null row.
+Order is as follows: nulls, then values that can be parsed as nunmber sorted ascending,
+then other string sorted lexically.
 
 ```
            +-> document location ----+
@@ -101,6 +121,33 @@ _Symbol_ is any java identifier that is not keyword (this definition is not stri
 different places, but above is generally a good rule of thumb...) + complex symbols 
 like `t1.attribute`. _Operators_: =, !=, <, <=, >, >=, ~ (match reqexp), ||, AND, OR. Comparisons
 convert expressions to Java `long`.
+
+```
+
+accumulate clause: --> 'ACCUMULATE' ---> aggregate -+---+
+                                     ^----- ',' ----+   |
+                                                        |
+                    +-----------------------------------+
+                    |                                   v
+                    +-> 'GROUP' -> 'BY' --> symbol -+------>
+                                         ^--- ',' --+
+
+            +-> 'SUM' ---+
+            +-> 'MIN' ---+
+            +-> 'MAX' ---v
+aggregate: --+-> 'COUNT' --> '(' -> expression -> ')' -> alias ->
+```
+
+_Accumulate clause_ allows specifing of one or more aggregates defined as aggragete function call.
+_COUNT_ returns string representation of number of different values for given expression in group
+row set. _SUM_ treats expression values as `long` (0 if not parsable). _MIN_ and _MAX_ sort row set like
+_ORDER_ clause and take first/last row respectively. Aggregate requires an alias.
+
+_GROUP BY_ clause is optional, if omitted, whole partial result becomes group row set and only
+aggregates are allowed in _SELECT_ projection. If present, it is followed by list of symbols
+that denote attributes in rows (you cannot group by expressions). Care should be taken, as those
+symbols become aliases. That is, if you write `GROUP BY t.attr`, you can only use `t.attr` in 
+projection expressions and not `attr` alone.
 
 ```
 projection: --> expression -+-> alias -->
@@ -152,6 +199,17 @@ select c.summary, c.name || ' (' || c.phone || ')' contact
 Selects tasks with priority greater or equal 3 and all tasks from projects p1 and p2, matches assignee
 with contact data from work contacts and outputs task summary with name and phone of person responsible.
 
+```
+from (from tasks t, /work/contacts c
+where t.assignee = c.name 
+accumulate count(t.project) projectCnt grouping by c.name
+select projectCnt, c.name name)
+where projectCnt > 1
+select *
+```
+
+Selects all employees that work on more than one project along with number of projects they are working on.
+
 ## Limitations
 
 Currently queries are compiled and executed without optimization. DB has working sorting and 
@@ -175,7 +233,7 @@ on the fly.
 
 # Building
 
-Application is written in Java, any fairy recent version will do. It has no external dependencies besides
+Application is written in Java, any recent version will do. It has no external dependencies besides
 lombok. On my fairy slow machine, execution times are around 0.1s-0.2s when working with small databases with
 OpenJDK. To achieve better performance application can be easily native-compiled using GraalVM. Config for
 serialization is added in `src/main/resources`, building native image then is as simple as invoking in `target`
@@ -189,7 +247,6 @@ Precompiled binaries for Linux are available on github.
 
 # Planned features
 
-- `group` and `order by` clauses
 - table output
 - builtin functions (nvl, substr, find)
 - pseudo-columns `__document`, `__line`

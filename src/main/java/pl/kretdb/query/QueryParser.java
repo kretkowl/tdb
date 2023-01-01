@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,7 +23,6 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.Collections;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -33,6 +33,7 @@ import lombok.ToString;
 import lombok.Value;
 import pl.kretdb.model.DB;
 import pl.kretdb.model.Document;
+import static pl.kretdb.Util.toMap;
 
 public class QueryParser {
 
@@ -225,7 +226,7 @@ public class QueryParser {
         return qc;
     }
 
-    private static Set<String> KEYWORDS = Set.of("from", "where", "select", "group", "null", "order");
+    private static Set<String> KEYWORDS = Set.of("from", "where", "select", "accumulate", "grouping", "null", "order");
 
     private Supplier<RuntimeException> failMatch(String msg) {
         return () -> new IllegalStateException(msg);
@@ -236,6 +237,8 @@ public class QueryParser {
         parseFrom(qc, lexer);
         System.out.println("PC WHERE");
         parseWhere(qc, lexer);
+        System.out.println("PC ACCUMULATE");
+        parseGroup(qc, lexer);
         System.out.println("PC SELECT");
         parseSelect(qc, lexer);
         System.out.println("PC ORDER");
@@ -270,7 +273,7 @@ public class QueryParser {
                 .ifPresent(alias -> qc.addPartial(Operators.project(qc.lastIndex(), attrs -> 
                                 attrs.entrySet().stream()
                                 .flatMap(e -> Stream.of(e, Map.entry(alias + "." + e.getKey(), e.getValue())))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
+                                .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))));
             if (previousIndex >= 0) {
                 qc.addPartial(Operators.cartesian(previousIndex, qc.lastIndex()));
             }
@@ -337,7 +340,56 @@ public class QueryParser {
         return matcher.group();
     }
 
+    private static final Comparator<String> QUERY_VALUE_COMPARATOR = new Comparator<String>() {
+
+        public int compare(String v1, String v2) {
+            if (v1 == null)
+                if (v2 == null) return 0;
+                else return 1;
+            else if (v2 == null) return -1;
+
+            return convert2Num(v1)
+                .flatMap(n1 -> convert2Num(v2).map(n2 -> (int)(n1 - n2)))
+                .orElseGet(() -> v1.compareTo(v2));
+        }
+    };
     private static Pattern aliasPattern = Pattern.compile("[a-z][a-z_0-9]*");
+
+    private static Map<String, Function<Stream<String>, String>> groupingFunctions = Map.of(
+            "count", list -> Long.toString(list.distinct().count()), 
+            "max", list -> list.sorted(QUERY_VALUE_COMPARATOR.reversed()).findFirst().orElse(null),
+            "min", list -> list.sorted(QUERY_VALUE_COMPARATOR).findFirst().orElse(null),
+            "sum", list -> Long.toString(list.mapToLong(s -> convert2Num(s).orElse(0l)).sum()));
+            //"join");
+
+    private void parseGroup(QueryContext qc, Lexer l) {
+        if (l.match(TokenType.SYMBOL, "accumulate"::equals).isEmpty())
+            return;
+        
+        var aggregates = new HashMap<String, Function<List<Map<String, String>>, String>>();
+        do {
+            var fun = l.match(TokenType.SYMBOL, groupingFunctions::containsKey).orElseThrow(failMatch("aggregate function expected"));
+            l.match(TokenType.LP).orElseThrow(failMatch("left parenthesis expected"));
+            var expr = parseExpression(l);            
+            l.match(TokenType.RP).orElseThrow(failMatch("left parenthesis expected"));
+            var alias = l.match(TokenType.SYMBOL, s -> aliasPattern.matcher(s).matches()).orElseThrow(failMatch("alias expected"));
+            aggregates.put(alias, list -> groupingFunctions.get(fun).apply(list.stream().map(expr)));
+        } while (l.match(TokenType.COMMA).isPresent());
+
+        var groupings = new LinkedList<String>();
+        if (l.match(TokenType.SYMBOL, "grouping"::equals).isPresent()) {
+            l.match(TokenType.SYMBOL, "by"::equals).orElseThrow(failMatch("by expected"));
+            do {
+                groupings.add(l.match(TokenType.SYMBOL).orElseThrow(failMatch("column name/alias expected")));
+            } while (l.match(TokenType.COMMA).isPresent());
+        }
+        
+        qc.addPartial(Operators.groupBy(
+                    qc.lastIndex(), 
+                    groupings, 
+                    list -> aggregates.entrySet().stream().collect(
+                        toMap(Entry::getKey, e -> e.getValue().apply(list)))));
+    }
 
     private void parseSelect(QueryContext qc, Lexer l) {
         l.match(TokenType.SYMBOL, "select"::equals).orElseThrow(failMatch("select expected"));
@@ -346,27 +398,11 @@ public class QueryParser {
             l.match(TokenType.STAR)
                 .map(__ -> (UnaryOperator<Map<String, String>>)(ma -> 
                         ma.entrySet().stream()
-                            .collect(Collectors.toMap(e -> extractFieldName(e.getKey()), Entry::getValue, (v1, v2) -> v1)))) 
+                            .collect(toMap(e -> extractFieldName(e.getKey()), Entry::getValue)))) 
                 .orElseGet(() -> {
-                    Map<String, QueryFunction> alias2expression = new LinkedHashMap<>();
-                    var aliasCnt = new AtomicInteger(0);
-                    do {
-                        var expr = parseExpression(l);
-                        var alias = l.match(TokenType.SYMBOL, v -> aliasPattern.matcher(v).matches())
-                            .orElseGet(() -> {
-                                String evalAlias = null;
-                                try {
-                                    evalAlias = expr.asLabel();
-                                } catch (Exception e) { /* nop */ }
-                                if (evalAlias == null || !aliasPattern.matcher(evalAlias).matches()) {
-                                    return "__data_" + aliasCnt.incrementAndGet();
-                                }
-                                return evalAlias;
-                            });
-                        alias2expression.put(alias, expr);
-                    } while (l.match(TokenType.COMMA).isPresent());
+                    Map<String, QueryFunction> alias2expression = parseSelectProjection(l);
                     return ma -> alias2expression.entrySet().stream()
-                        .collect(Collectors.toMap(
+                        .collect(toMap(
                                     Entry::getKey, 
                                     e -> e.getValue().apply(ma),
                                     (m1, m2) -> m2,
@@ -375,6 +411,28 @@ public class QueryParser {
 
         qc.addPartial(Operators.project(qc.lastIndex(), projection));
     }
+
+    private Map<String, QueryFunction> parseSelectProjection(Lexer l) {
+        Map<String, QueryFunction> alias2expression = new LinkedHashMap<>();
+        var aliasCnt = new AtomicInteger(0);
+        do {
+            var expr = parseExpression(l);
+            var alias = l.match(TokenType.SYMBOL, v -> aliasPattern.matcher(v).matches())
+                .orElseGet(() -> {
+                    String evalAlias = null;
+                    try {
+                        evalAlias = expr.asLabel();
+                    } catch (Exception e) { /* nop */ }
+                    if (evalAlias == null || !aliasPattern.matcher(evalAlias).matches()) {
+                        return "__data_" + aliasCnt.incrementAndGet();
+                    }
+                    return evalAlias;
+                });
+            alias2expression.put(alias, expr);
+        } while (l.match(TokenType.COMMA).isPresent());
+        return alias2expression;
+    }
+
     /*
      * 
      * expr := 
@@ -504,6 +562,16 @@ public class QueryParser {
     }
 
     private void parseOrder(QueryContext qc, Lexer l) {
+        if (l.match(TokenType.SYMBOL, "order"::equals).isEmpty())
+            return;
+        l.match(TokenType.SYMBOL, "by"::equals).orElseThrow(failMatch("by expected"));
 
+        var sortExpr = parseExpressionList(l).stream().map(e -> Comparator.comparing(e, QUERY_VALUE_COMPARATOR)).collect(Collectors.toList());
+
+        var comparator = sortExpr.subList(1, sortExpr.size()).stream()
+            .map(o -> (Comparator<Map<String, String>>) o)
+            .reduce(sortExpr.get(0), (c1, c2) -> c1.thenComparing(c2));
+
+        qc.addPartial(Operators.sort(qc.lastIndex(), comparator));
     }
 }
