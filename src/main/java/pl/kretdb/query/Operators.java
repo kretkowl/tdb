@@ -66,9 +66,7 @@ public class Operators {
 
     public static Operator groupBy(int base, List<String> attributes, Function<List<Map<String, String>>, Map<String, String>> aggregates) {
         return transform(base, s -> {
-            var group = s.peek(v -> { System.out.println("peek " + v);}).collect(groupingBy(attrs -> attributes.stream().collect(toMap(a->a, a-> { System.out.println("value for: " +a); return (String)attrs.get(a); }))));
-            System.out.println("group: " + group);
-            //var group = s.collect(groupingBy(attrs -> attributes.stream().collect(() -> new HashMap<String, String>(), (m,a) -> m.put(a, (String)attrs.get(a)), HashMap::putAll)));
+            var group = s.collect(groupingBy(attrs -> attributes.stream().collect(toMap(a->a, a-> (String)attrs.get(a)))));
             return group.entrySet().stream()
                 .map(e -> {
                     Map<String, String> ret = new HashMap<>(e.getKey());

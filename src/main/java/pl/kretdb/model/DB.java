@@ -92,5 +92,4 @@ public class DB implements Serializable {
     public Stream<Entry> findAll() {
         return entries.stream();
     }
-
 }

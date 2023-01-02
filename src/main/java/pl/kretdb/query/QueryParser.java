@@ -187,11 +187,9 @@ public class QueryParser {
             if (nextToken != null) {
                 var ret = nextToken;
                 nextToken = null;
-                System.out.println("return nextT: " + ret);
                 return ret;
             }
             var t = readNextTokenInternal();   
-            System.out.println("return nextT after read: "+ t);
             return t;
         }
 
@@ -233,17 +231,11 @@ public class QueryParser {
     }
 
     private void parseQuery(QueryContext qc, Lexer lexer) {
-        System.out.println("PC FROM");
         parseFrom(qc, lexer);
-        System.out.println("PC WHERE");
         parseWhere(qc, lexer);
-        System.out.println("PC ACCUMULATE");
         parseGroup(qc, lexer);
-        System.out.println("PC SELECT");
         parseSelect(qc, lexer);
-        System.out.println("PC ORDER");
         parseOrder(qc, lexer);
-        System.out.println("PC END");
     }
 
     private void parseFrom(QueryContext qc, Lexer l) {
@@ -253,9 +245,7 @@ public class QueryParser {
             var previousIndex = qc.lastIndex();
             l.match(TokenType.LP)
                 .ifPresentOrElse(__ -> {
-                    System.out.println("SUBQ START");
                     parseQuery(qc, l);
-                    System.out.println("SUBQ AFTER PC");
                     l.match(TokenType.RP).orElseThrow(failMatch("closing parenthesis expected"));
                 },
                 () -> {

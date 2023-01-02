@@ -33,7 +33,7 @@ public class Tdb {
             "  query - last parameter is query, when in form @<filename> it will be read from that file\n" +
             "          else taken literally (be sure to use quotes). Query can be preceded by option\n" +
             "          deciding on output: -r is single row, every attribute in seperate <key>: <value> line,\n" +
-            "          -v is single value without key, when not specified csv will be used";
+            "          -v is single value without key, -t markdown table, when not specified csv will be used";
         System.err.println(usage);
     }
 

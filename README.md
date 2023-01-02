@@ -200,10 +200,12 @@ Selects tasks with priority greater or equal 3 and all tasks from projects p1 an
 with contact data from work contacts and outputs task summary with name and phone of person responsible.
 
 ```
-from (from tasks t, /work/contacts c
-where t.assignee = c.name 
-accumulate count(t.project) projectCnt grouping by c.name
-select projectCnt, c.name name)
+from (
+  from tasks t, /work/contacts c
+  where t.assignee = c.name 
+  accumulate count(t.project) projectCnt grouping by c.name
+  select projectCnt, c.name name
+)
 where projectCnt > 1
 select *
 ```
@@ -212,8 +214,9 @@ Selects all employees that work on more than one project along with number of pr
 
 ## Limitations
 
-Currently queries are compiled and executed without optimization. DB has working sorting and 
-grouping, but there is no syntax for it.
+Currently queries are compiled and executed without optimization. Optimization can be done 'by hand' to
+some degree by choosing source order in from and using subqueries before joining to limit number of
+rows processed by where.
 
 # Running
 
@@ -245,10 +248,39 @@ After native compilation, running simplest query is 10x faster (0.02-0.03s).
 
 Precompiled binaries for Linux are available on github. 
 
+# FAQ
+
+1. Why not use embedded DBMS like H2 or sqlite?
+
+First reason: to minimize dependencies - I had no prior experience with GraalVM, so I feared that using external
+libraries which in turn will use reflection/jni/whatever will cause troubles during native image export.
+
+Second: it seemed overkill to use full-fledged DB just for indexing bunch of files. After implementing all of this
+I am not so sure about it.
+
+Third: I like writing parsers by hand!
+
+2. Why not use ANTLR or another parser generator?
+
+It wouldn't save much work in short run, as it would complicate generating expressions. In long run, after
+considering potential optimization, I'm not so sure anymore that it was a good decision.
+
+3. What are practical applications?
+
+My personal projects have bunch of markdown files, that specify 'backlog' for things I'm planning to do,
+history of things I've done and things I'm currently working on. This tool helps me search, count, group
+tasks and relieves me from manually taking care of indexing and/or writing them in some order - I can have
+one or more 'bags' of tasks.
+
+I also execute queries automatically on opening file and place results inline. This way, I have index files
+that are updated when I open them.
+
+
 # Planned features
 
-- table output
 - builtin functions (nvl, substr, find)
+- rebuild that respects modification time
+- option to test if directory is under tdb root
 - pseudo-columns `__document`, `__line`
 - query optimization (joins and select order)
 

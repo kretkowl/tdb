@@ -29,6 +29,7 @@ public class CommandLineParser {
             if (command == Command.QUERY) {
                 if (args[i].equals("-r")) { clob.outputType(OutputType.SINGLE_ROW); continue; }
                 else if (args[i].equals("-v")) { clob.outputType(OutputType.SINGLE_VALUE); continue; }
+                else if (args[i].equals("-t")) { clob.outputType(OutputType.TABLE); continue; }
             } if (command == Command.INIT) {
                 if (args[i].equals("-i")) { clob.index(true); continue; }
             }

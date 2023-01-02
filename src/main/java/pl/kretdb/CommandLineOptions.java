@@ -17,7 +17,7 @@ public class CommandLineOptions {
 
     OutputType outputType;
 
-    public enum OutputType { CSV, SINGLE_ROW, SINGLE_VALUE }
+    public enum OutputType { CSV, SINGLE_ROW, SINGLE_VALUE, TABLE }
 
     public enum Command { INIT, REBUILD, INDEX, QUERY }
 }
