@@ -5,10 +5,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>pl.kretkowl</groupId>
-  <artifactId>kretdb</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <artifactId>tdb</artifactId>
+  <version>0.1.0</version>
 
-  <name>kretdb</name>
+  <name>tdb</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 
@@ -71,7 +71,7 @@
             <archive>
               <manifest>
                 <addClasspath>true</addClasspath>
-                <mainClass>pl.kretdb.Tdb</mainClass>
+                <mainClass>pl.kretkowl.tdb.Tdb</mainClass>
               </manifest>
             </archive>
           </configuration>

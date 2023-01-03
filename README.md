@@ -1,5 +1,5 @@
-KreTextDB
-=========
+TDB
+===
 
 Database backed by Markdown files. Allows to execute arbitrary queries over data collected from Markdown files
 contained in directory tree. Inspired by dataview's idea, although I've never used it, only read about it.
@@ -119,7 +119,13 @@ _Strings_ are `'` delimited. _Numbers_ are syntactic sugar - they are treated as
 Value is true iff it is not null and is not equal `'f'`, _true_ / _false_ are syntactic sugar.
 _Symbol_ is any java identifier that is not keyword (this definition is not strict, it varies in 
 different places, but above is generally a good rule of thumb...) + complex symbols 
-like `t1.attribute`. _Operators_: =, !=, <, <=, >, >=, ~ (match reqexp), ||, AND, OR. Comparisons
+like `t1.attribute`. 
+
+Functions: _nvl(args..)_ - first not null value, _nullif(t, v)_ if _t_ is truthy - `null`, else _v_,
+_length(s)_ - length of string s or `null`, _substr(s, start[, end])_ - substring from start
+(including) to end (excluding).
+
+_Operators_: =, !=, <, <=, >, >=, ~ (match reqexp), ||, AND, OR. Comparisons
 convert expressions to Java `long`.
 
 ```
@@ -132,9 +138,9 @@ accumulate clause: --> 'ACCUMULATE' ---> aggregate -+---+
                     +-> 'GROUP' -> 'BY' --> symbol -+------>
                                          ^--- ',' --+
 
-            +-> 'SUM' ---+
-            +-> 'MIN' ---+
-            +-> 'MAX' ---v
+             +-> 'SUM' ---+
+             +-> 'MIN' ---+
+             +-> 'MAX' ---v
 aggregate: --+-> 'COUNT' --> '(' -> expression -> ')' -> alias ->
 ```
 
@@ -156,7 +162,7 @@ projection: --> expression -+-> alias -->
 
 _Aliases_ are optional simple symbols. If not present and cannot be inferred from attribute name (e.g. because
 it is complex expression), default `__data_N` is assumed, where N is consecutive natural number. As with
-attribute keys, defina aliases starting with `__` at your own risk.
+attribute keys, define aliases starting with `__` at your own risk.
 
 Queries are case-insensitive.
 
@@ -227,7 +233,7 @@ exist when using native binaries, because of requirement of all serialized class
 compile time.
 
 Use `tdb` alone to show usage. Basically, you will run `tdb init -i` in root of your documents (it will create and 
-populate db file). Afterwards, you may issue queries with `tdb query (-c|-r|-v) QUERY` (don't forget to escape it), 
+populate db file). Afterwards, you may issue queries with `tdb query (-c|-r|-v|-t) QUERY` (don't forget to escape it), 
 optionally saving query to a file and using `@queryFile` syntax. After modifying document, issue `tdb index FILE` it.
 
 You may consider placing a hook on file saving to index it (e.g. using autocommands in vim). Also, as
@@ -242,11 +248,11 @@ OpenJDK. To achieve better performance application can be easily native-compiled
 serialization is added in `src/main/resources`, building native image then is as simple as invoking in `target`
 directory (after `mvn package`):
 
-    native-image kretdb-1.0-SNAPSHOT.jar tdb
+    native-image tdb-0.1.0.jar tdb
 
 After native compilation, running simplest query is 10x faster (0.02-0.03s).
 
-Precompiled binaries for Linux are available on github. 
+Precompiled binaries for x64 Linux are available on github. 
 
 # FAQ
 
@@ -275,12 +281,33 @@ one or more 'bags' of tasks.
 I also execute queries automatically on opening file and place results inline. This way, I have index files
 that are updated when I open them.
 
+4. Can you prepare binaries for Windows/ARM Linux/Mac?
+
+I do not have neither Windows nor ARM Linux box. Use jar.
+
+# License
+
+The GPLv2 License (GPLv2)
+
+Copyright (c) 2023 kretkowl () gmail.com
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Planned features
 
-- builtin functions (nvl, substr, find)
 - rebuild that respects modification time
-- option to test if directory is under tdb root
 - pseudo-columns `__document`, `__line`
 - query optimization (joins and select order)
+- running without index file
 
