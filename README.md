@@ -22,7 +22,7 @@ has to begin with letter or underscore followed by one or more of letters, numbe
 There must be exactly one space between dash and identifier and no space between identifier and colon.
 Value is as the tail string till end of line - no multiline values for now.
 
-Parses for Markdown is extreamly stupid - it does not care about code blocks etc. 
+Parses for Markdown is extremely stupid - it does not care about code blocks etc. 
 
 ## Example
 
