@@ -13,12 +13,16 @@ processing/formatting by external tool (to generate better looking tables/charts
 
 In analysed document each header (#) separates a section (entry). In section, all lines in format:
 
+```
    - identifier: value
+```
 
 are interpreted as key-value pair. Dash (-) must be preceded by one or more whitespace, identifier
 has to begin with letter or underscore followed by one or more of letters, numbers, dashes, underscores.
 There must be exactly one space between dash and identifier and no space between identifier and colon.
 Value is as the tail string till end of line - no multiline values for now.
+
+Parses for Markdown is extreamly stupid - it does not care about code blocks etc. 
 
 ## Example
 
@@ -90,7 +94,7 @@ source:  --+-----> document name --------+-> alias ->
            +---------> '*' -------^
 ```
 
-_Document location_ is document path (relative to documents root) preceded by '/' and followed by name, 
+_Document location_ is document path (relative to documents root) preceded by `/` and followed by name, 
 e.g. `/journal/january` - this matches exact document. _Document name_ `january` would match all documents 
 with that name in any directory from root. Parentheses surround _query_ to form a subquery. Star matches 
 all entries. _Alias_ is optional and allows referencing by `alias.attribute`, although `attribute` 
@@ -116,7 +120,7 @@ args: --> expression -+->
 ```
 
 _Strings_ are `'` delimited. _Numbers_ are syntactic sugar - they are treated as strings internally.
-Value is true iff it is not null and is not equal `'f'`, _true_ / _false_ are syntactic sugar.
+Value is true iff it is not null and is not equal `'f'`, `true` / `false` are syntactic sugar.
 _Symbol_ is any java identifier that is not keyword (this definition is not strict, it varies in 
 different places, but above is generally a good rule of thumb...) + complex symbols 
 like `t1.attribute`. 
@@ -135,8 +139,8 @@ accumulate clause: --> 'ACCUMULATE' ---> aggregate -+---+
                                                         |
                     +-----------------------------------+
                     |                                   v
-                    +-> 'GROUP' -> 'BY' --> symbol -+------>
-                                         ^--- ',' --+
+                    +-> 'GROUPING' -> 'BY' --> symbol -+--->
+                                            ^--- ',' --+
 
              +-> 'SUM' ---+
              +-> 'MIN' ---+
@@ -145,11 +149,11 @@ aggregate: --+-> 'COUNT' --> '(' -> expression -> ')' -> alias ->
 ```
 
 _Accumulate clause_ allows specifing of one or more aggregates defined as aggragete function call.
-_COUNT_ returns string representation of number of different values for given expression in group
-row set. _SUM_ treats expression values as `long` (0 if not parsable). _MIN_ and _MAX_ sort row set like
+`COUNT` returns string representation of number of different values for given expression in group
+row set. `SUM` treats expression values as `long` (0 if not parsable). `MIN` and `MAX` sort row set like
 _ORDER_ clause and take first/last row respectively. Aggregate requires an alias.
 
-_GROUP BY_ clause is optional, if omitted, whole partial result becomes group row set and only
+_GROUPING BY_ clause is optional, if omitted, whole partial result becomes group row set and only
 aggregates are allowed in _SELECT_ projection. If present, it is followed by list of symbols
 that denote attributes in rows (you cannot group by expressions). Care should be taken, as those
 symbols become aliases. That is, if you write `GROUP BY t.attr`, you can only use `t.attr` in 
