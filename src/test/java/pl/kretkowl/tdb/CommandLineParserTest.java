@@ -7,6 +7,7 @@ import pl.kretkowl.tdb.CommandLineOptions.OutputType;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.*;
 
 public class CommandLineParserTest {
@@ -41,7 +42,7 @@ public class CommandLineParserTest {
 
     @Test
     public void shouldParseQuery() {
-        var opt = new CommandLineParser().parseCommandLine(new String[] { "query", "-v", "@query" });
+        var opt = new CommandLineParser().parseCommandLine(new String[] { "query", "-v", "-q", "@query" });
 
         assertThat(opt.getCommand(), equalTo(Command.QUERY));
         assertThat(opt.getOutputType(), equalTo(OutputType.SINGLE_VALUE));
@@ -49,9 +50,18 @@ public class CommandLineParserTest {
     }
 
     @Test
+    public void shouldAllowQueryWithoutQ() {
+        var opt = new CommandLineParser().parseCommandLine(new String[] { "query", "-v" });
+
+        assertThat(opt.getCommand(), equalTo(Command.QUERY));
+        assertThat(opt.getOutputType(), equalTo(OutputType.SINGLE_VALUE));
+        assertThat(opt.getQuery(), nullValue());
+    }
+
+    @Test
     public void shouldFailOnQueryWithoutQuery() {
         try {
-            new CommandLineParser().parseCommandLine(new String[] { "query" });
+            new CommandLineParser().parseCommandLine(new String[] { "query", "-q" });
             fail();
         } catch (RuntimeException e) {
             // nop

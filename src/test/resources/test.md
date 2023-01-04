@@ -10,3 +10,7 @@
  - name: Bob 
  - fruit: Banana
 
+```query
+FROM * SELECT *
+```
+

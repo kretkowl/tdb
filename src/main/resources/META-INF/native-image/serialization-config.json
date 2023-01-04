@@ -2,8 +2,8 @@
         {"name": "java.lang.String"},
         {"name": "java.util.HashSet"},
         {"name": "java.util.HashMap"},
-        {"name": "pl.kretdb.model.DB"},
-        {"name": "pl.kretdb.model.Document"},
-        {"name": "pl.kretdb.model.Entry"}
+        {"name": "pl.kretkowl.tdb.model.DB"},
+        {"name": "pl.kretkowl.tdb.model.Document"},
+        {"name": "pl.kretkowl.tdb.model.Entry"}
 ]
 

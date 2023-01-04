@@ -1,12 +1,15 @@
 package pl.kretkowl.tdb;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import lombok.AllArgsConstructor;
@@ -31,9 +34,10 @@ public class Tdb {
             "  rebuild - reindexes all .md files below nearest root\n" +
             "  index - takes one parameter, filename to index\n" +
             "  root - finds and return path to nearest root, fails if not found\n" +
-            "  query - last parameter is query, when in form @<filename> it will be read from that file\n" +
-            "          else taken literally (be sure to use quotes). Query can be preceded by option\n" +
-            "          deciding on output: -r is single row, every attribute in seperate <key>: <value> line,\n" +
+            "  query - query is read from standard input unless parameter -q <query> is given, when\n" +
+            "          it is in form @<filename> it will be read from that file else taken literally\n" +
+            "          (be sure to use quotes). Also, option deciding on output can be given: \n" +
+            "          -r is single row, every attribute in seperate <key>: <value> line,\n" +
             "          -v is single value without key, -t markdown table, when not specified csv will be used";
         System.err.println(usage);
     }
@@ -97,7 +101,9 @@ public class Tdb {
         case QUERY:
             sm = StoreManager.open(Paths.get("."));
             String query;
-            if (clo.getQuery().startsWith("@")) 
+            if (clo.getQuery() == null) 
+                query = new BufferedReader(new InputStreamReader(System.in)).lines().collect(Collectors.joining("\n"));
+            else if (clo.getQuery().startsWith("@")) 
                 query = Files.readString(Paths.get(clo.getQuery().substring(1)));
             else
                 query = clo.getQuery();

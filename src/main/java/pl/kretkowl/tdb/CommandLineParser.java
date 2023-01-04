@@ -18,18 +18,13 @@ public class CommandLineParser {
                 throw new IllegalArgumentException("filename is required");
             clob.file(args[args.length-1]);
             endIndex--;
-        } else if (command == Command.QUERY) {
-            if (args.length-1 == 0)
-                throw new IllegalArgumentException("query is required");
-            clob.query(args[args.length-1]);
-            endIndex--;
-        }
-
+        } 
         for (int i=1; i<=endIndex; i++) {
             if (command == Command.QUERY) {
                 if (args[i].equals("-r")) { clob.outputType(OutputType.SINGLE_ROW); continue; }
                 else if (args[i].equals("-v")) { clob.outputType(OutputType.SINGLE_VALUE); continue; }
                 else if (args[i].equals("-t")) { clob.outputType(OutputType.TABLE); continue; }
+                else if (args[i].equals("-q")) { clob.query(args[++i]); continue; }
             } if (command == Command.INIT) {
                 if (args[i].equals("-i")) { clob.index(true); continue; }
             }
