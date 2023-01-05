@@ -17,10 +17,10 @@ In analysed document each header (#) separates a section (entry). In section, al
    - identifier: value
 ```
 
-are interpreted as key-value pair. Dash (-) must be preceded by one or more whitespace, identifier
-has to begin with letter or underscore followed by one or more of letters, numbers, dashes, underscores.
-There must be exactly one space between dash and identifier and no space between identifier and colon.
-Value is as the tail string till end of line - no multiline values for now.
+are interpreted as key-value pair (identifier is case-insensitive). Dash (-) must be preceded by one or
+more whitespace, identifier has to begin with letter or underscore followed by one or more of letters,
+numbers, dashes, underscores. There must be exactly one space between dash and identifier and no space
+between identifier and colon. Value is as the tail string till end of line - no multiline values for now.
 
 Parses for Markdown is extremely stupid - it does not care about code blocks etc. 
 
@@ -41,6 +41,7 @@ Following document:
 ```
 
 contains 2 sections, one with keys name, fruit and color, other with name, fruit and animal. 
+
 
 # Database
 
@@ -311,7 +312,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Planned features
 
 - rebuild that respects modification time
+- order by ... desc
 - pseudo-columns `__document`, `__line`
+- arithmetic operators
 - query optimization (joins and select order)
+- views
 - running without index file
 

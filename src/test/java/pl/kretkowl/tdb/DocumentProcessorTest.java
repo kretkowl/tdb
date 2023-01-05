@@ -19,7 +19,7 @@ public class DocumentProcessorTest {
         dp.setRoot(Path.of("."));
         var read =dp .processDocument(new Document("./src/test/resources", "test.md", null));
 
-        assertTrue(read.size() == 2);
+        assertTrue(read.size() == 3);
         assertTrue(read.get(0).getAttributes().get("name").equals("Alice"));
     }
 

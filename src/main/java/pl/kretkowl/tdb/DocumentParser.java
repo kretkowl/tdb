@@ -57,7 +57,7 @@ public class DocumentParser {
                     }
                     var m = ATTRIBUTE.matcher(line);
                     if (m.find()) {
-                        var attribute = m.group(1);
+                        var attribute = m.group(1).toLowerCase();
                         var value = line.substring(m.end()).trim(); // TODO support for multiline values
                         ue.attributes.put(attribute, value);
                     }

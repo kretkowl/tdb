@@ -214,6 +214,14 @@ public class QueryParserTest {
         assertSingleResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute(), "a", "A");
     }
 
+    @Test 
+    public void shouldSelectReqexpMatch() {
+        System.out.println("= start select regexp =");
+        var query = "from * where a ~ 'A' select a";
+
+        assertSingleResult(new QueryParser().parseQuery(prepare1EntryDB(), query).execute(), "a", "A");
+    }
+
     @Test
     public void shouldSelectSingleValueWithAlias() {
         var query = "from name where true select bb c";

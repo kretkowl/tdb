@@ -6,11 +6,11 @@
 
   <groupId>pl.kretkowl</groupId>
   <artifactId>tdb</artifactId>
-  <version>0.1.1</version>
+  <version>0.1.2-SNAPSHOT</version>
 
   <name>tdb</name>
   <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <url>https://github.com/kretkowl/tdb</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

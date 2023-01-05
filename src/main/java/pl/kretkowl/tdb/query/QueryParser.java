@@ -500,7 +500,7 @@ public class QueryParser {
     private static Map<Token, BiFunction<String, String, String>> OPERATORS = Map.of(
         new Token(TokenType.EQ), (s1,s2) -> convert2String(s1 == null ? s2 == null : s1.equals(s2)),
         new Token(TokenType.NE), (s1,s2) -> convert2String(s1 == null ? s2 != null : !s1.equals(s2)),
-        new Token(TokenType.MATCHES), (s1,s2) -> convert2String(s1 == null && s2 == null && Pattern.matches(s2, s1)),
+        new Token(TokenType.MATCHES), (s1,s2) -> convert2String((s1 == null && s2 == null) || Pattern.compile(s2).matcher(s1).find()),
         new Token(TokenType.CONCAT), (s1,s2) -> (s1 == null ? "" : s1) + (s2 == null ? "" : s2),
         new Token(TokenType.GT), numComparator((n1,n2) -> n1 > n2),
         new Token(TokenType.GE), numComparator((n1,n2) -> n1 >= n2),
