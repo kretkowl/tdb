@@ -276,7 +276,7 @@ public class QueryParser {
     }
 
     private String callBuiltin(String fun, List<String> args) {
-        return null;
+        return Builtins.dispatch(fun, args);
     }
 
     private QueryFunction resolveValue(Token t) {
